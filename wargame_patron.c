@@ -9,6 +9,7 @@
 #define NB_COLONNES 10
 #define INFINI 10000
 
+
 /*#define DEBUG*/
 
 typedef struct pion_s
@@ -19,11 +20,48 @@ typedef struct pion_s
 
 Pion *plateauDeJeu;
 
+typedef struct coup_s {
+	int l1, c1;
+	int l2, c2;
+} Coup;
+
+typedef struct liste_coups_s {
+	Coup coup;
+	struct liste_coups_s *suivant;
+} ElementCoup, *ListeCoups;
+
+
 void f_affiche_plateau(Pion *plateau);
 int f_convert_char2int(char c);
 char f_convert_int2char(int i);
+ListeCoups ajouter_coup(ListeCoups tete, int l1, int c1, int l2, int c2);
+void liberer_coups(ListeCoups tete);
+ListeCoups generer_coups(Pion *plateau, int joueur);
 
 
+
+ListeCoups ajouter_coup(ListeCoups tete, int l1, int c1, int l2, int c2) {
+	ElementCoup *nouveau = (ElementCoup *)malloc(sizeof(ElementCoup));
+	if (nouveau == NULL) {
+		printf("Erreur allocation mémoire\n");
+		exit(EXIT_FAILURE);
+	}
+	nouveau->coup.l1 = l1;
+	nouveau->coup.c1 = c1;
+	nouveau->coup.l2 = l2;
+	nouveau->coup.c2 = c2;
+	nouveau->suivant = tete;
+	return nouveau;
+}
+
+void liberer_coups(ListeCoups tete) {
+	ElementCoup *courant = tete;
+	while (courant != NULL) {
+		ElementCoup *temp = courant->suivant;
+		free(courant);
+		courant = temp;
+	}
+}
 
 int f_convert_char2int(char c)
 {
@@ -314,13 +352,49 @@ int f_test_mouvement(Pion *plateau, int l1, int c1, int l2, int c2, int couleur)
 		return 1;
 
 	if(l1-l2 >1 || l2-l1 >1 || c1-c2 >1 || c2-c1 >1 || (l1==l2 && c1==c2))
-		retour = 1;
+		return 1;
 #ifdef DEBUG
 	printf("dbg: exiting %s %d\n", __FUNCTION__, __LINE__);
 #endif
 	return 0;
 }
 
+ListeCoups generer_coups(Pion *plateau, int joueur)
+{
+	ListeCoups liste = NULL;
+	int l1, c1, dl, dc, l2, c2;
+
+	for (l1 = 0; l1 < NB_LIGNES; l1++)
+	{
+		for (c1 = 0; c1 < NB_COLONNES; c1++)
+		{
+			// 1. On cherche une pièce appartenant au joueur
+			if (plateau[l1 * NB_COLONNES + c1].couleur == joueur)
+			{
+				// 2. On explore les 8 directions autour d'elle
+				for (dl = -1; dl <= 1; dl++)
+				{
+					for (dc = -1; dc <= 1; dc++)
+					{
+						if (dl == 0 && dc == 0)
+							continue; // Rester sur place n'est pas un mouvement
+
+						l2 = l1 + dl;
+						c2 = c1 + dc;
+
+						// 3. f_test_mouvement renvoie 0 si le mouvement est légal
+						if (f_test_mouvement(plateau, l1, c1, l2, c2, joueur) == 0)
+						{
+							liste = ajouter_coup(liste, l1, c1, l2, c2);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return liste;
+}
 
 /**
  * Prend la ligne et colonne de la case d'origine
@@ -450,15 +524,15 @@ Pion* f_raz_plateau()
 
 //Fonction min trouve le minimum des noeuds fils
 ??? f_min(???)
-		{
+{
 	/** A remplir **/
-		}
+}
 
 //Fonction max trouve le maximum des noeuds fils
 ??? f_max(???)
-		{
+{
 	/** A remplir **/
-		}
+}
 
 /**
  * Calcule et joue le meilleur cout
@@ -466,13 +540,13 @@ Pion* f_raz_plateau()
 void f_IA(int joueur)
 {
 #ifdef DEBUG
-	printf("dbg: entering %s %d\n", __FUNCTION__, __LINE__);
+    printf("dbg: entering %s %d\n", __FUNCTION__, __LINE__);
 #endif
 
-	/** A remplir **/
+
 
 #ifdef DEBUG
-	printf("dbg: exiting %s %d\n", __FUNCTION__, __LINE__);
+    printf("dbg: exiting %s %d\n", __FUNCTION__, __LINE__);
 #endif
 }
 
@@ -572,4 +646,5 @@ int main(int argv, char *argc[])
 
 	return 0;
 }
+
 

@@ -1,0 +1,1 @@
+add_executable(td1_AI_wargame wargame_patron.c)
