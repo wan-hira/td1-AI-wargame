@@ -37,7 +37,8 @@ char f_convert_int2char(int i);
 ListeCoups ajouter_coup(ListeCoups tete, int l1, int c1, int l2, int c2);
 void liberer_coups(ListeCoups tete);
 ListeCoups generer_coups(Pion *plateau, int joueur);
-
+int f_max(Pion *plateau, int profondeur, int joueur_max, int joueur_ia);
+int f_min(Pion *plateau, int profondeur, int joueur_min, int joueur_ia);
 
 
 ListeCoups ajouter_coup(ListeCoups tete, int l1, int c1, int l2, int c2) {
@@ -523,15 +524,82 @@ Pion* f_raz_plateau()
 }
 
 //Fonction min trouve le minimum des noeuds fils
-??? f_min(???)
+int f_min(Pion *plateau, int profondeur, int joueur_min, int joueur_ia)
 {
-	/** A remplir **/
+	// Condition d'arrêt
+	if (profondeur == 0)
+	{
+		return f_eval(plateau, joueur_ia);
+	}
+
+	int meilleur_score = INFINI;
+	ListeCoups coups = generer_coups(plateau, joueur_min);
+	ElementCoup *courant = coups;
+
+	// Si aucun coup possible, on évalue la position
+	if (coups == NULL)
+		return f_eval(plateau, joueur_ia);
+
+	Pion copie[NB_LIGNES * NB_COLONNES];
+
+	while (courant != NULL)
+	{
+		// Copier le plateau
+		f_copie_plateau(plateau, copie);
+
+		// Jouer le coup sur la copie
+		f_bouge_piece(copie, courant->coup.l1, courant->coup.c1, courant->coup.l2, courant->coup.c2, joueur_min);
+
+		// Appel récursif vers f_max
+		int score = f_max(copie, profondeur - 1, -joueur_min, joueur_ia);
+
+		// Garder le minimum
+		if (score < meilleur_score)
+			meilleur_score = score;
+
+		courant = courant->suivant;
+	}
+
+	// Libérer la mémoire des coups
+	liberer_coups(coups);
+
+	return meilleur_score;
 }
 
 //Fonction max trouve le maximum des noeuds fils
-??? f_max(???)
+int f_max(Pion *plateau, int profondeur, int joueur_max, int joueur_ia)
 {
-	/** A remplir **/
+	// Condition d'arrêt
+	if (profondeur <= 0) {
+		return f_eval(plateau, joueur_ia);
+	}
+
+	int valeur_max = -INFINI;
+	ListeCoups coups = generer_coups(plateau, joueur_max);
+	ElementCoup *courant = coups;
+
+	if (coups == NULL)
+		return f_eval(plateau, joueur_ia);
+
+	Pion copie[NB_LIGNES * NB_COLONNES];
+
+	// Parcourir chaque coup possible
+	while (courant != NULL)
+	{
+		f_copie_plateau(plateau, copie);
+		f_bouge_piece(copie, courant->coup.l1, courant->coup.c1, courant->coup.l2, courant->coup.c2, joueur_max);
+
+		// Appel recursif vers f_min pour le joueur adverse
+		int v = f_min(copie, profondeur - 1, -joueur_max, joueur_ia);
+		if (v > valeur_max) {
+			valeur_max = v;
+		}
+
+		courant = courant->suivant;
+	}
+
+	liberer_coups(coups);
+	return valeur_max;
 }
 
 /**
