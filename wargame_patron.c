@@ -487,9 +487,66 @@ int f_valeur(Pion* jeu, int joueur)
 }
 
 //fonction d'évaluation
-int f_eval(Pion* jeu,int joueur)
+int f_eval(Pion *jeu, int joueur)
 {
-	/** A vous de trouver une fonction efficace **/
+    int i, j;
+    int adversaire = -joueur;
+    int score = 0;
+
+    // Détection de victoire ou défaite par percée de la ligne de fond
+    for (i = 0; i < NB_COLONNES; i++)
+    {
+        // Pour le joueur 1 (Noirs), la ligne de fond adverse est la ligne 0
+        if (jeu[0 * NB_COLONNES + i].couleur == 1)
+        {
+            return (joueur == 1) ? 5000 : -5000;
+        }
+        // Pour le joueur -1 (Blancs), la ligne de fond adverse est la ligne 9
+        if (jeu[(NB_LIGNES - 1) * NB_COLONNES + i].couleur == -1)
+        {
+            return (joueur == -1) ? 5000 : -5000;
+        }
+    }
+
+    // Détection par extermination d'armée
+    int pions_joueur = f_nbPions(jeu, joueur);
+    int pions_adv = f_nbPions(jeu, adversaire);
+
+    if (pions_adv == 0) return 5000;
+    if (pions_joueur == 0) return -5000;
+
+    // Différence matérielle
+    int val_joueur = f_valeur(jeu, joueur);
+    int val_adv = f_valeur(jeu, adversaire);
+    score += (val_joueur - val_adv) * 10;
+    score += (pions_joueur - pions_adv) * 5;
+
+    // Bonus d'avancement des troupes
+    int avancement = 0;
+    for (i = 0; i < NB_LIGNES; i++)
+    {
+        for (j = 0; j < NB_COLONNES; j++)
+        {
+            Pion p = jeu[i * NB_COLONNES + j];
+            if (p.couleur == joueur)
+            {
+                if (joueur == 1)
+                    avancement += (9 - i); // Les Noirs descendent vers 0
+                else
+                    avancement += i;       // Les Blancs montent vers 9
+            }
+            else if (p.couleur == adversaire)
+            {
+                if (adversaire == 1)
+                    avancement -= (9 - i);
+                else
+                    avancement -= i;
+            }
+        }
+    }
+    score += avancement * 2;
+
+    return score;
 }
 
 //copie du plateau
@@ -608,16 +665,64 @@ int f_max(Pion *plateau, int profondeur, int joueur_max, int joueur_ia)
 void f_IA(int joueur)
 {
 #ifdef DEBUG
-    printf("dbg: entering %s %d\n", __FUNCTION__, __LINE__);
+	printf("dbg: entering %s %d\n", __FUNCTION__, __LINE__);
 #endif
 
+	int profondeur = 3;
+	int meilleur_score = -INFINI;
+	int meilleur_l1 = -1, meilleur_c1 = -1;
+	int meilleur_l2 = -1, meilleur_c2 = -1;
 
+	ListeCoups coups = generer_coups(plateauDeJeu, joueur);
+	ElementCoup *courant = coups;
+
+	if (coups == NULL)
+	{
+		printf("Aucun coup possible pour le joueur %d\n", joueur);
+		return;
+	}
+
+	Pion copie[NB_LIGNES * NB_COLONNES];
+
+	while (courant != NULL)
+	{
+		// Simuler le coup sur une copie
+		f_copie_plateau(plateauDeJeu, copie);
+		f_bouge_piece(copie, courant->coup.l1, courant->coup.c1, courant->coup.l2, courant->coup.c2, joueur);
+
+		// Evaluer la suite avec le tour de l'adversaire (-joueur)
+		int score = f_min(copie, profondeur - 1, -joueur, joueur);
+
+		// Memoriser le meilleur coup
+		if (score > meilleur_score)
+		{
+			meilleur_score = score;
+			meilleur_l1 = courant->coup.l1;
+			meilleur_c1 = courant->coup.c1;
+			meilleur_l2 = courant->coup.l2;
+			meilleur_c2 = courant->coup.c2;
+		}
+
+		courant = courant->suivant;
+	}
+
+	// Libération
+	liberer_coups(coups);
+
+	// Appliquer le coup choisi sur le vrai plateau
+	if (meilleur_l1 != -1)
+	{
+		printf("IA (%s) joue : %c%d -> %c%d (score estimé : %d)\n",
+			   (joueur == 1 ? "x" : "o"),
+			   f_convert_int2char(meilleur_c1), meilleur_l1,
+			   f_convert_int2char(meilleur_c2), meilleur_l2, meilleur_score);
+		f_bouge_piece(plateauDeJeu, meilleur_l1, meilleur_c1, meilleur_l2, meilleur_c2, joueur);
+	}
 
 #ifdef DEBUG
-    printf("dbg: exiting %s %d\n", __FUNCTION__, __LINE__);
+	printf("dbg: exiting %s %d\n", __FUNCTION__, __LINE__);
 #endif
 }
-
 
 /**
  * Demande le choix du joueur humain et calcule le coup demande
