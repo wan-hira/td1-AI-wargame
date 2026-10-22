@@ -30,7 +30,7 @@ typedef struct liste_coups_s {
 	struct liste_coups_s *suivant;
 } ElementCoup, *ListeCoups;
 
-
+//les prototypes des fonctions
 void f_affiche_plateau(Pion *plateau);
 int f_convert_char2int(char c);
 char f_convert_int2char(int i);
@@ -39,7 +39,9 @@ void liberer_coups(ListeCoups tete);
 ListeCoups generer_coups(Pion *plateau, int joueur);
 int f_max(Pion *plateau, int profondeur, int joueur_max, int joueur_ia);
 int f_min(Pion *plateau, int profondeur, int joueur_min, int joueur_ia);
-
+long nb_noeuds_visites = 0; //pour compter les noeuds explorés
+int f_max_ab(Pion *plateau, int profondeur, int joueur_max, int joueur_ia, int alpha, int beta);
+int f_min_ab(Pion *plateau, int profondeur, int joueur_min, int joueur_ia, int alpha, int beta);
 
 ListeCoups ajouter_coup(ListeCoups tete, int l1, int c1, int l2, int c2) {
 	ElementCoup *nouveau = (ElementCoup *)malloc(sizeof(ElementCoup));
@@ -659,6 +661,96 @@ int f_max(Pion *plateau, int profondeur, int joueur_max, int joueur_ia)
 	return valeur_max;
 }
 
+// Version avec coupures Alpha/Beta de f_min
+int f_min_ab(Pion *plateau, int profondeur, int joueur_min, int joueur_ia, int alpha, int beta)
+{
+    nb_noeuds_visites++; // On compte chaque nœud exploré
+
+    if (profondeur <= 0)
+    {
+        return f_eval(plateau, joueur_ia);
+    }
+
+    int meilleur_score = INFINI;
+    ListeCoups coups = generer_coups(plateau, joueur_min);
+    ElementCoup *courant = coups;
+
+    if (coups == NULL)
+        return f_eval(plateau, joueur_ia);
+
+    Pion copie[NB_LIGNES * NB_COLONNES];
+
+    while (courant != NULL)
+    {
+        f_copie_plateau(plateau, copie);
+        f_bouge_piece(copie, courant->coup.l1, courant->coup.c1, courant->coup.l2, courant->coup.c2, joueur_min);
+
+        // Appel recursif croise vers f_max_ab avec alpha et beta
+        int score = f_max_ab(copie, profondeur - 1, -joueur_min, joueur_ia, alpha, beta);
+
+        if (score < meilleur_score)
+            meilleur_score = score;
+
+        // Mise a jour de la borne beta
+        if (meilleur_score < beta)
+            beta = meilleur_score;
+
+        // Coupure Beta : le joueur MAX au-dessus ne choisira jamais cette branche
+        if (beta <= alpha)
+            break;
+
+        courant = courant->suivant;
+    }
+
+    liberer_coups(coups);
+    return meilleur_score;
+}
+
+// Version avec coupures Alpha/Beta de f_max
+int f_max_ab(Pion *plateau, int profondeur, int joueur_max, int joueur_ia, int alpha, int beta)
+{
+    nb_noeuds_visites++; // On compte chaque nœud exploré
+
+    if (profondeur <= 0)
+    {
+        return f_eval(plateau, joueur_ia);
+    }
+
+    int valeur_max = -INFINI;
+    ListeCoups coups = generer_coups(plateau, joueur_max);
+    ElementCoup *courant = coups;
+
+    if (coups == NULL)
+        return f_eval(plateau, joueur_ia);
+
+    Pion copie[NB_LIGNES * NB_COLONNES];
+
+    while (courant != NULL)
+    {
+        f_copie_plateau(plateau, copie);
+        f_bouge_piece(copie, courant->coup.l1, courant->coup.c1, courant->coup.l2, courant->coup.c2, joueur_max);
+
+        // Appel recursif croise vers f_min_ab avec alpha et beta
+        int v = f_min_ab(copie, profondeur - 1, -joueur_max, joueur_ia, alpha, beta);
+
+        if (v > valeur_max)
+            valeur_max = v;
+
+        // Mise a jour de la borne alpha
+        if (valeur_max > alpha)
+            alpha = valeur_max;
+
+        // Coupure Alpha : le joueur MIN au-dessus ne permettra jamais d'atteindre ce score
+        if (alpha >= beta)
+            break;
+
+        courant = courant->suivant;
+    }
+
+    liberer_coups(coups);
+    return valeur_max;
+}
+
 /**
  * Calcule et joue le meilleur cout
  * */
@@ -672,6 +764,12 @@ void f_IA(int joueur)
 	int meilleur_score = -INFINI;
 	int meilleur_l1 = -1, meilleur_c1 = -1;
 	int meilleur_l2 = -1, meilleur_c2 = -1;
+
+	// Fenêtre initiale pour Alpha/Beta
+	int alpha = -INFINI;
+	int beta = +INFINI;
+
+	nb_noeuds_visites = 0; // Remise à zéro pour ce coup précis
 
 	ListeCoups coups = generer_coups(plateauDeJeu, joueur);
 	ElementCoup *courant = coups;
@@ -691,7 +789,10 @@ void f_IA(int joueur)
 		f_bouge_piece(copie, courant->coup.l1, courant->coup.c1, courant->coup.l2, courant->coup.c2, joueur);
 
 		// Evaluer la suite avec le tour de l'adversaire (-joueur)
-		int score = f_min(copie, profondeur - 1, -joueur, joueur);
+		//int score = f_min(copie, profondeur - 1, -joueur, joueur); Pour version sans alpha/beta
+
+		// Appel à la version Alpha/Beta
+		int score = f_min_ab(copie, profondeur - 1, -joueur, joueur, alpha, beta);
 
 		// Memoriser le meilleur coup
 		if (score > meilleur_score)

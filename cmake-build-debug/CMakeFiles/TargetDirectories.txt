@@ -1,0 +1,3 @@
+/Users/waneezahiraawan/CLionProjects/td1-AI-wargame/cmake-build-debug/CMakeFiles/td1_AI_wargame.dir
+/Users/waneezahiraawan/CLionProjects/td1-AI-wargame/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/waneezahiraawan/CLionProjects/td1-AI-wargame/cmake-build-debug/CMakeFiles/rebuild_cache.dir
