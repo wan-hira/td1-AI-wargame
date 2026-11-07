@@ -150,8 +150,71 @@ def f_raz_plateau():
     return [Pion(0, 0) for _ in range(NB_LIGNES * NB_COLONNES)]
 
 
-# Test rapide d'affichage 
+# Verification de la validite physique d'un mouvement
+# Renvoie 0 si le coup est valide, 1 sinon
+def f_test_mouvement(plateau, l1, c1, l2, c2, couleur):
+    # 1. Controle des limites de la grille (0 a 9)
+    if (l1 < 0 or l1 >= NB_LIGNES or l2 < 0 or l2 >= NB_LIGNES or
+            c1 < 0 or c1 >= NB_COLONNES or c2 < 0 or c2 >= NB_COLONNES):
+        return 1
+
+    # 2. On verifie qu'il y a bien une piece sur la case de depart et qu'elle appartient au joueur
+    if (plateau[l1 * NB_COLONNES + c1].valeur == 0 or
+            plateau[l1 * NB_COLONNES + c1].couleur != couleur):
+        return 1
+
+    # 3. Interdiction de capturer une piece de sa propre armee
+    if plateau[l2 * NB_COLONNES + c2].couleur == plateau[l1 * NB_COLONNES + c1].couleur:
+        return 1
+
+    # 4. Deplacement autorise uniquement vers les 8 cases adjacentes (distance max de 1 case)
+    # et interdiction de rester immobile sur place (l1 == l2 and c1 == c2)
+    if (l1 - l2 > 1 or l2 - l1 > 1 or c1 - c2 > 1 or c2 - c1 > 1 or
+            (l1 == l2 and c1 == c2)):
+        return 1
+
+    return 0
+
+# Parcours du plateau pour lister tous les coups legaux possibles du joueur
+def generer_coups(plateau, joueur):
+    liste = None
+    # On scanne chaque case du plateau
+    for l1 in range(NB_LIGNES):
+        for c1 in range(NB_COLONNES):
+            # Si la case contient un pion du joueur actif
+            if plateau[l1 * NB_COLONNES + c1].couleur == joueur:
+                # On teste les 8 directions relatives autour de la piece
+                for dl in range(-1, 2):
+                    for dc in range(-1, 2):
+                        if dl == 0 and dc == 0:
+                            continue  # Rester sur place n'est pas un deplacement
+                        l2 = l1 + dl
+                        c2 = c1 + dc
+                        # Si le mouvement respecte les regles, on l'ajoute en tete de liste
+                        if f_test_mouvement(plateau, l1, c1, l2, c2, joueur) == 0:
+                            liste = ajouter_coup(liste, l1, c1, l2, c2)
+    return liste
+
+# Test rapide d'affichage
 if __name__ == "__main__":
     plateauDeJeu = f_init_plateau()
     f_affiche_plateau(plateauDeJeu)
-    print("\nInitialisation et affichage valides.")
+
+    # Test de generation pour les Noirs (1) et les Blancs (-1)
+    coups_noirs = generer_coups(plateauDeJeu, 1)
+    nb_noirs = 0
+    cur = coups_noirs
+    while cur:
+        nb_noirs += 1
+        cur = cur.suivant
+
+    coups_blancs = generer_coups(plateauDeJeu, -1)
+    nb_blancs = 0
+    cur = coups_blancs
+    while cur:
+        nb_blancs += 1
+        cur = cur.suivant
+
+
+    print(f"- Coups legaux generes pour les Noirs (x) au depart : {nb_noirs} coup")
+    print(f"- Coups legaux generes pour les Blancs (o) au depart : {nb_blancs} coup")
