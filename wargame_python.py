@@ -195,7 +195,96 @@ def generer_coups(plateau, joueur):
                             liste = ajouter_coup(liste, l1, c1, l2, c2)
     return liste
 
-# Test rapide d'affichage
+# Resolution d'un combat sur la case (l, c)
+# On passe le plateau local en argument pour ne pas impacter la grille globale
+def f_bataille(plateau, l, c):
+    mini = 0 if l - 1 < 0 else l - 1
+    maxi = NB_LIGNES - 1 if l + 1 > NB_LIGNES - 1 else l + 1
+    minj = 0 if c - 1 < 0 else c - 1
+    maxj = NB_COLONNES - 1 if c + 1 > NB_COLONNES - 1 else c + 1
+
+    somme = 0
+    # Somme des forces presentes autour de la case
+    for i in range(mini, maxi + 1):
+        for j in range(minj, maxj + 1):
+            somme += plateau[i * NB_COLONNES + j].couleur * plateau[i * NB_COLONNES + j].valeur
+
+    # On soustrait la piece cible du defenseur
+    somme -= plateau[l * NB_COLONNES + c].couleur * plateau[l * NB_COLONNES + c].valeur
+
+    if somme < 0:
+        return -1
+    if somme > 0:
+        return 1
+
+    # En cas d'egalite, le defenseur conserve la case
+    return plateau[l * NB_COLONNES + c].couleur
+
+# Deplacement physique d'une piece et resolution si combat
+def f_bouge_piece(plateau, l1, c1, l2, c2, couleur):
+    if f_test_mouvement(plateau, l1, c1, l2, c2, couleur) != 0:
+        return 1
+
+    # Case vide a l'arrivee
+    if plateau[l2 * NB_COLONNES + c2].valeur == 0:
+        plateau[l2 * NB_COLONNES + c2].couleur = plateau[l1 * NB_COLONNES + c1].couleur
+        plateau[l2 * NB_COLONNES + c2].valeur = plateau[l1 * NB_COLONNES + c1].valeur
+        plateau[l1 * NB_COLONNES + c1].couleur = 0
+        plateau[l1 * NB_COLONNES + c1].valeur = 0
+    else:
+        gagnant = f_bataille(plateau, l2, c2)
+        # Victoire de l'attaquant : il prend la place
+        if gagnant == couleur:
+            plateau[l2 * NB_COLONNES + c2].couleur = plateau[l1 * NB_COLONNES + c1].couleur
+            plateau[l2 * NB_COLONNES + c2].valeur = plateau[l1 * NB_COLONNES + c1].valeur
+            plateau[l1 * NB_COLONNES + c1].couleur = 0
+            plateau[l1 * NB_COLONNES + c1].valeur = 0
+        # Defaite de l'attaquant : sa piece est eliminee
+        elif gagnant != 0:
+            plateau[l1 * NB_COLONNES + c1].couleur = 0
+            plateau[l1 * NB_COLONNES + c1].valeur = 0
+
+    return 0
+
+# Test d'invasion de ligne de fond
+def test_victoire(p):
+    for i in range(NB_COLONNES):
+        if p[0 * NB_COLONNES + i].couleur == 1:
+            return 1
+        if p[9 * NB_COLONNES + i].couleur == -1:
+            return -1
+    return 0
+
+# Verification de l'etat final de la partie sur le plateau principal
+def f_gagnant():
+    global plateauDeJeu
+    somme1 = 0
+    somme2 = 0
+
+    # Ligne adverse atteinte
+    for i in range(NB_COLONNES):
+        if plateauDeJeu[i].couleur == 1:
+            return 1
+        if plateauDeJeu[(NB_LIGNES - 1) * NB_COLONNES + i].couleur == -1:
+            return -1
+
+    # Comptage des pieces restantes
+    for i in range(NB_LIGNES):
+        for j in range(NB_COLONNES):
+            if plateauDeJeu[i * NB_COLONNES + j].couleur == 1:
+                somme1 += 1
+            if plateauDeJeu[i * NB_COLONNES + j].couleur == -1:
+                somme2 += 1
+
+    if somme1 == 0:
+        return -1
+    if somme2 == 0:
+        return 1
+
+    return 0
+
+
+# Test
 if __name__ == "__main__":
     plateauDeJeu = f_init_plateau()
     f_affiche_plateau(plateauDeJeu)
@@ -216,5 +305,7 @@ if __name__ == "__main__":
         cur = cur.suivant
 
 
-    print(f"- Coups legaux generes pour les Noirs (x) au depart : {nb_noirs} coup")
-    print(f"- Coups legaux generes pour les Blancs (o) au depart : {nb_blancs} coup")
+    print(f"- Coups legaux generes pour les Noirs (x) au depart : {nb_noirs} coups")
+    print(f"- Coups legaux generes pour les Blancs (o) au depart : {nb_blancs} coups")
+    print(f"- Verification victoire initiale : {test_victoire(plateauDeJeu)}")
+    print(f"- Verification f_gagnant initial : {f_gagnant()}")
