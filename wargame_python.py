@@ -153,21 +153,21 @@ def f_raz_plateau():
 # Verification de la validite physique d'un mouvement
 # Renvoie 0 si le coup est valide, 1 sinon
 def f_test_mouvement(plateau, l1, c1, l2, c2, couleur):
-    # 1. Controle des limites de la grille (0 a 9)
+    # Controle des limites de la grille (0 a 9)
     if (l1 < 0 or l1 >= NB_LIGNES or l2 < 0 or l2 >= NB_LIGNES or
             c1 < 0 or c1 >= NB_COLONNES or c2 < 0 or c2 >= NB_COLONNES):
         return 1
 
-    # 2. On verifie qu'il y a bien une piece sur la case de depart et qu'elle appartient au joueur
+    # On verifie qu'il y a bien une piece sur la case de depart et qu'elle appartient au joueur
     if (plateau[l1 * NB_COLONNES + c1].valeur == 0 or
             plateau[l1 * NB_COLONNES + c1].couleur != couleur):
         return 1
 
-    # 3. Interdiction de capturer une piece de sa propre armee
+    # Interdiction de capturer une piece de sa propre armee
     if plateau[l2 * NB_COLONNES + c2].couleur == plateau[l1 * NB_COLONNES + c1].couleur:
         return 1
 
-    # 4. Deplacement autorise uniquement vers les 8 cases adjacentes (distance max de 1 case)
+    # Deplacement autorise uniquement vers les 8 cases adjacentes (distance max de 1 case)
     # et interdiction de rester immobile sur place (l1 == l2 and c1 == c2)
     if (l1 - l2 > 1 or l2 - l1 > 1 or c1 - c2 > 1 or c2 - c1 > 1 or
             (l1 == l2 and c1 == c2)):
@@ -283,6 +283,82 @@ def f_gagnant():
 
     return 0
 
+# Comptage du nombre total de pieces d'un joueur
+def f_nbPions(jeu, joueur):
+    nb_pion = 0
+    for i in range(NB_COLONNES):
+        for j in range(NB_LIGNES):
+            if jeu[i * NB_COLONNES + j].couleur == joueur:
+                nb_pion += 1
+    return nb_pion
+
+
+# Somme des points de force de toutes les pieces d'un joueur
+def f_valeur(jeu, joueur):
+    valeur = 0
+    for i in range(NB_COLONNES):
+        for j in range(NB_LIGNES):
+            if jeu[i * NB_COLONNES + j].couleur == joueur:
+                valeur += jeu[i * NB_COLONNES + j].valeur
+    return valeur
+
+# Heuristique d'evaluation de position
+def f_eval(jeu, joueur, profondeur):
+    adversaire = -joueur
+    score = 0
+
+    # Victoire ou defaite par percee de la ligne adverse
+    for i in range(NB_COLONNES):
+        # Pour les Noirs (1), l'objectif est la ligne 0
+        if jeu[0 * NB_COLONNES + i].couleur == 1:
+            return (5000 + profondeur) if joueur == 1 else (-5000 - profondeur)
+        # Pour les Blancs (-1), l'objectif est la ligne 9
+        if jeu[(NB_LIGNES - 1) * NB_COLONNES + i].couleur == -1:
+            return (5000 + profondeur) if joueur == -1 else (-5000 - profondeur)
+
+    # Victoire ou defaite par extermination complete
+    pions_joueur = f_nbPions(jeu, joueur)
+    pions_adv = f_nbPions(jeu, adversaire)
+
+    if pions_adv == 0:
+        return 5000 + profondeur
+    if pions_joueur == 0:
+        return -5000 - profondeur
+
+    # Equilibre
+    val_joueur = f_valeur(jeu, joueur)
+    val_adv = f_valeur(jeu, adversaire)
+    score += (val_joueur - val_adv) * 20
+    score += (pions_joueur - pions_adv) * 10
+
+    # Avancement territorial et securite de la ligne arriere
+    avancement = 0
+    danger_fond = 0
+
+    for i in range(NB_LIGNES):
+        for j in range(NB_COLONNES):
+            p = jeu[i * NB_COLONNES + j]
+            if p.couleur == joueur:
+                if joueur == 1:
+                    avancement += (9 - i)  # Distance parcourue vers le bas
+                else:
+                    avancement += i        # Distance parcourue vers le haut
+            elif p.couleur == adversaire:
+                if adversaire == 1:
+                    avancement -= (9 - i)
+                    # Alerte si un pion adverse approche a 1 ou 2 cases de notre ligne 0
+                    if i <= 2:
+                        danger_fond += (3 - i) * 60
+                else:
+                    avancement -= i
+                    # Alerte si un pion adverse approche a 1 ou 2 cases de notre ligne 9
+                    if i >= 7:
+                        danger_fond += (i - 6) * 60
+
+    score += avancement * 2
+    score -= danger_fond
+
+    return score
 
 # Test
 if __name__ == "__main__":
@@ -309,3 +385,6 @@ if __name__ == "__main__":
     print(f"- Coups legaux generes pour les Blancs (o) au depart : {nb_blancs} coups")
     print(f"- Verification victoire initiale : {test_victoire(plateauDeJeu)}")
     print(f"- Verification f_gagnant initial : {f_gagnant()}")
+    print(f"- Pions joueur 1 (x) : {f_nbPions(plateauDeJeu, 1)} (force totale : {f_valeur(plateauDeJeu, 1)})")
+    print(f"- Pions joueur -1 (o) : {f_nbPions(plateauDeJeu, -1)} (force totale : {f_valeur(plateauDeJeu, -1)})")
+    print(f"- Evaluation initiale pour joueur 1 (prof 3) : {f_eval(plateauDeJeu, 1, 3)}")
