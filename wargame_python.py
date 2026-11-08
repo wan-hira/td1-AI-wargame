@@ -505,37 +505,77 @@ def f_max_ab(plateau, profondeur, joueur_max, joueur_ia, alpha, beta):
     liberer_coups(coups)
     return valeur_max
 
+# Calcule et joue le meilleur coup pour le joueur IA
+def f_IA(joueur):
+    global plateauDeJeu, nb_noeuds_visites
+
+    profondeur = 3
+    meilleur_score = -INFINI
+    meilleur_l1, meilleur_c1 = -1, -1
+    meilleur_l2, meilleur_c2 = -1, -1
+
+    # Bornes initiales pour l'elagage Alpha-Beta
+    alpha = -INFINI
+    beta = INFINI
+
+    # Remise a zero du compteur pour mesurer precisement chaque coup
+    nb_noeuds_visites = 0
+
+    coups = generer_coups(plateauDeJeu, joueur)
+    courant = coups
+
+    if coups is None:
+        print(f"Aucun coup possible pour le joueur {joueur}")
+        return
+
+    copie = [Pion(0, 0) for _ in range(NB_LIGNES * NB_COLONNES)]
+
+    while courant is not None:
+        # Simulation du coup candidat sur une copie
+        f_copie_plateau(plateauDeJeu, copie)
+        f_bouge_piece(copie, courant.coup.l1, courant.coup.c1, courant.coup.l2, courant.coup.c2, joueur)
+
+        # Priorite absolue : si le coup atteint directement la ligne adverse, victoire immediate
+        if test_victoire(copie) == joueur:
+            score = 10000
+        else:
+            # Sinon on explore la reponse adverse a profondeur - 1
+            if algo_ia == 1:
+                score = f_min(copie, profondeur - 1, -joueur, joueur)
+            else:
+                score = f_min_ab(copie, profondeur - 1, -joueur, joueur, alpha, beta)
+
+        # Enregistrement du meilleur coup trouve
+        if score > meilleur_score:
+            meilleur_score = score
+            meilleur_l1 = courant.coup.l1
+            meilleur_c1 = courant.coup.c1
+            meilleur_l2 = courant.coup.l2
+            meilleur_c2 = courant.coup.c2
+
+        # Mise a jour de la borne alpha a la racine si on utilise Alpha-Beta
+        if algo_ia == 2 and meilleur_score > alpha:
+            alpha = meilleur_score
+
+        courant = courant.suivant
+
+    liberer_coups(coups)
+
+    # Application du coup optimal sur le vrai plateau de jeu
+    if meilleur_l1 != -1:
+        nom_j = "x" if joueur == 1 else "o"
+        nom_algo = "Minimax" if algo_ia == 1 else "Alpha-Beta"
+        c1_char = f_convert_int2char(meilleur_c1)
+        c2_char = f_convert_int2char(meilleur_c2)
+        print(f"IA ({nom_j} | {nom_algo}) joue : {c1_char}{meilleur_l1} -> {c2_char}{meilleur_l2} "
+              f"(score estimé : {meilleur_score} | noeuds : {nb_noeuds_visites})")
+        f_bouge_piece(plateauDeJeu, meilleur_l1, meilleur_c1, meilleur_l2, meilleur_c2, joueur)
+
 # Test
 if __name__ == "__main__":
     plateauDeJeu = f_init_plateau()
     f_affiche_plateau(plateauDeJeu)
 
-    # Test de generation pour les Noirs (1) et les Blancs (-1)
-    coups_noirs = generer_coups(plateauDeJeu, 1)
-    nb_noirs = 0
-    cur = coups_noirs
-    while cur:
-        nb_noirs += 1
-        cur = cur.suivant
-
-    coups_blancs = generer_coups(plateauDeJeu, -1)
-    nb_blancs = 0
-    cur = coups_blancs
-    while cur:
-        nb_blancs += 1
-        cur = cur.suivant
-
-
-    # Test Minimax classique
-    nb_noeuds_visites = 0
-    score_mm = f_max(plateauDeJeu, 2, 1, 1)
-    noeuds_mm = nb_noeuds_visites
-
-    # Test Alpha-Beta
-    nb_noeuds_visites = 0
-    score_ab = f_max_ab(plateauDeJeu, 2, 1, 1, -INFINI, INFINI)
-    noeuds_ab = nb_noeuds_visites
-
-    print(f"- Minimax classique : score = {score_mm} | noeuds = {noeuds_mm}")
-    print(f"- Alpha-Beta        : score = {score_ab} | noeuds = {noeuds_ab}")
-    print(f"- Gain elagage      : {round((1 - noeuds_ab / noeuds_mm) * 100, 1)}% de noeuds en moins")
+    algo_ia = 2
+    f_IA(1)
+    f_affiche_plateau(plateauDeJeu)
