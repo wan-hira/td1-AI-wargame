@@ -571,11 +571,84 @@ def f_IA(joueur):
               f"(score estimé : {meilleur_score} | noeuds : {nb_noeuds_visites})")
         f_bouge_piece(plateauDeJeu, meilleur_l1, meilleur_c1, meilleur_l2, meilleur_c2, joueur)
 
-# Test
-if __name__ == "__main__":
-    plateauDeJeu = f_init_plateau()
-    f_affiche_plateau(plateauDeJeu)
+# Saisie du coup par l'utilisateur humain
+def f_humain(joueur):
+    global plateauDeJeu
+    nom_j = "o" if joueur == -1 else ("x" if joueur == 1 else "inconnu")
+    print(f"joueur {nom_j} joue (ex: J9J8 ou J9 J8) :")
+    while True:
+        try:
+            buffer = input().strip()
+        except EOFError:
+            break
 
-    algo_ia = 2
-    f_IA(1)
-    f_affiche_plateau(plateauDeJeu)
+        if len(buffer) >= 4:
+            # Expression reguliere souple acceptant les coordonnees avec ou sans espace
+            m = re.match(r"^([A-Za-z])(\d+)\s*([A-Za-z])(\d+)$", buffer)
+            if m:
+                c1_str, l1_str, c2_str, l2_str = m.groups()
+                l1 = int(l1_str)
+                l2 = int(l2_str)
+                col1 = f_convert_char2int(c1_str)
+                col2 = f_convert_char2int(c2_str)
+                # Verification des colonnes et execution du deplacement
+                if col1 != -1 and col2 != -1:
+                    if f_bouge_piece(plateauDeJeu, l1, col1, l2, col2, joueur) == 0:
+                        break
+        print("mauvais choix")
+
+
+# Point d'entree principal : selection des modes et deroulement de la partie
+def main():
+    global plateauDeJeu, algo_ia
+
+    fin = 0
+    joueur = 1
+
+    print("1 humain vs IA\n2 humain vs humain\n3 IA vs IA")
+    try:
+        mode = int(input())
+    except (ValueError, EOFError):
+        mode = 3
+
+    # Si l'IA intervient dans la partie, on propose le choix de l'algorithme
+    if mode in (1, 3):
+        print("\n--- Choix de l'algorithme IA ---")
+        print("1. Minimax classique\n2. Minimax avec coupures Alpha-Beta")
+        try:
+            algo_ia = int(input())
+        except (ValueError, EOFError):
+            algo_ia = 2
+
+    # Initialisation de la grille de depart
+    plateauDeJeu = f_init_plateau()
+
+    # Boucle de jeu alternant les tours jusqu'a la fin
+    while not fin:
+        f_affiche_plateau(plateauDeJeu)
+        if mode == 1:
+            if joueur > 0:
+                f_humain(joueur)
+            else:
+                f_IA(joueur)
+        elif mode == 2:
+            f_humain(joueur)
+        else:
+            f_IA(joueur)
+
+        # Verification des conditions de victoire apres chaque action
+        ret = f_gagnant()
+        if ret != 0:
+            f_affiche_plateau(plateauDeJeu)
+            if ret == 1:
+                print("joueur x gagne!")
+            elif ret == -1:
+                print("joueur o gagne!")
+            fin = 1
+
+        # Changement de joueur pour le tour suivant
+        joueur = -joueur
+
+
+if __name__ == "__main__":
+    main()
