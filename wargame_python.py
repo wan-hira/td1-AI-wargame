@@ -427,6 +427,84 @@ def f_max(plateau, profondeur, joueur_max, joueur_ia):
     liberer_coups(coups)
     return valeur_max
 
+# Version avec coupures Alpha-Beta de f_min
+def f_min_ab(plateau, profondeur, joueur_min, joueur_ia, alpha, beta):
+    global nb_noeuds_visites
+    nb_noeuds_visites += 1
+
+    if profondeur <= 0 or test_victoire(plateau) != 0:
+        return f_eval(plateau, joueur_ia, profondeur)
+
+    meilleur_score = INFINI
+    coups = generer_coups(plateau, joueur_min)
+    courant = coups
+
+    if coups is None:
+        return f_eval(plateau, joueur_ia, profondeur)
+
+    copie = [Pion(0, 0) for _ in range(NB_LIGNES * NB_COLONNES)]
+
+    while courant is not None:
+        f_copie_plateau(plateau, copie)
+        f_bouge_piece(copie, courant.coup.l1, courant.coup.c1, courant.coup.l2, courant.coup.c2, joueur_min)
+
+        score = f_max_ab(copie, profondeur - 1, -joueur_min, joueur_ia, alpha, beta)
+
+        if score < meilleur_score:
+            meilleur_score = score
+
+        # Mise a jour de la borne beta (score minimum que MIN garantit)
+        if meilleur_score < beta:
+            beta = meilleur_score
+
+        # Coupure Beta : MAX au-dessus ne choisira jamais cette branche
+        if beta <= alpha:
+            break
+
+        courant = courant.suivant
+
+    liberer_coups(coups)
+    return meilleur_score
+
+
+# Version avec coupures Alpha-Beta de f_max
+def f_max_ab(plateau, profondeur, joueur_max, joueur_ia, alpha, beta):
+    global nb_noeuds_visites
+    nb_noeuds_visites += 1
+
+    if profondeur <= 0 or test_victoire(plateau) != 0:
+        return f_eval(plateau, joueur_ia, profondeur)
+
+    valeur_max = -INFINI
+    coups = generer_coups(plateau, joueur_max)
+    courant = coups
+
+    if coups is None:
+        return f_eval(plateau, joueur_ia, profondeur)
+
+    copie = [Pion(0, 0) for _ in range(NB_LIGNES * NB_COLONNES)]
+
+    while courant is not None:
+        f_copie_plateau(plateau, copie)
+        f_bouge_piece(copie, courant.coup.l1, courant.coup.c1, courant.coup.l2, courant.coup.c2, joueur_max)
+
+        v = f_min_ab(copie, profondeur - 1, -joueur_max, joueur_ia, alpha, beta)
+        if v > valeur_max:
+            valeur_max = v
+
+        # Mise a jour de la borne alpha (meilleur score garanti pour MAX)
+        if valeur_max > alpha:
+            alpha = valeur_max
+
+        # Coupure Alpha : MIN au-dessus ne permettra pas d'atteindre ce score
+        if alpha >= beta:
+            break
+
+        courant = courant.suivant
+
+    liberer_coups(coups)
+    return valeur_max
+
 # Test
 if __name__ == "__main__":
     plateauDeJeu = f_init_plateau()
@@ -448,15 +526,16 @@ if __name__ == "__main__":
         cur = cur.suivant
 
 
-    print(f"- Coups legaux generes pour les Noirs (x) au depart : {nb_noirs} coups")
-    print(f"- Coups legaux generes pour les Blancs (o) au depart : {nb_blancs} coups")
-    print(f"- Verification victoire initiale : {test_victoire(plateauDeJeu)}")
-    print(f"- Verification f_gagnant initial : {f_gagnant()}")
-    print(f"- Pions joueur 1 (x) : {f_nbPions(plateauDeJeu, 1)} (force totale : {f_valeur(plateauDeJeu, 1)})")
-    print(f"- Pions joueur -1 (o) : {f_nbPions(plateauDeJeu, -1)} (force totale : {f_valeur(plateauDeJeu, -1)})")
-    print(f"- Evaluation initiale pour joueur 1 (prof 3) : {f_eval(plateauDeJeu, 1, 3)}")
+    # Test Minimax classique
     nb_noeuds_visites = 0
-    # Test d'une exploration Minimax a profondeur 1 pour verifier la recursion
-    score_test = f_max(plateauDeJeu, 1, 1, 1)
-    print(f"- Exploration Minimax (prof 1) score : {score_test}")
-    print(f"- Noeuds visites : {nb_noeuds_visites}")
+    score_mm = f_max(plateauDeJeu, 2, 1, 1)
+    noeuds_mm = nb_noeuds_visites
+
+    # Test Alpha-Beta
+    nb_noeuds_visites = 0
+    score_ab = f_max_ab(plateauDeJeu, 2, 1, 1, -INFINI, INFINI)
+    noeuds_ab = nb_noeuds_visites
+
+    print(f"- Minimax classique : score = {score_mm} | noeuds = {noeuds_mm}")
+    print(f"- Alpha-Beta        : score = {score_ab} | noeuds = {noeuds_ab}")
+    print(f"- Gain elagage      : {round((1 - noeuds_ab / noeuds_mm) * 100, 1)}% de noeuds en moins")
