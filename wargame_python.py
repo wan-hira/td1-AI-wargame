@@ -360,6 +360,73 @@ def f_eval(jeu, joueur, profondeur):
 
     return score
 
+#fonction min simule le tour de l'adversaire qui cherche a minimiser notre score
+def f_min(plateau, profondeur, joueur_min, joueur_ia):
+    global nb_noeuds_visites
+    nb_noeuds_visites += 1
+
+    # Condition d'arret : profondeur atteinte ou victoire immediate
+    if profondeur <= 0 or test_victoire(plateau) != 0:
+        return f_eval(plateau, joueur_ia, profondeur)
+
+    meilleur_score = INFINI
+    coups = generer_coups(plateau, joueur_min)
+    courant = coups
+
+    if coups is None:
+        return f_eval(plateau, joueur_ia, profondeur)
+
+    copie = [Pion(0, 0) for _ in range(NB_LIGNES * NB_COLONNES)]
+
+    while courant is not None:
+        # Simulation du coup sur une copie locale
+        f_copie_plateau(plateau, copie)
+        f_bouge_piece(copie, courant.coup.l1, courant.coup.c1, courant.coup.l2, courant.coup.c2, joueur_min)
+
+        # Appel recursif vers max pour le tour suivant
+        score = f_max(copie, profondeur - 1, -joueur_min, joueur_ia)
+
+        if score < meilleur_score:
+            meilleur_score = score
+
+        courant = courant.suivant
+
+    liberer_coups(coups)
+    return meilleur_score
+
+#fonction MAX qui simule notre tour ou l'on cherche a maximiser notre score
+def f_max(plateau, profondeur, joueur_max, joueur_ia):
+    global nb_noeuds_visites
+    nb_noeuds_visites += 1
+
+    # Condition d'arret : profondeur atteinte ou victoire immediate
+    if profondeur <= 0 or test_victoire(plateau) != 0:
+        return f_eval(plateau, joueur_ia, profondeur)
+
+    valeur_max = -INFINI
+    coups = generer_coups(plateau, joueur_max)
+    courant = coups
+
+    if coups is None:
+        return f_eval(plateau, joueur_ia, profondeur)
+
+    copie = [Pion(0, 0) for _ in range(NB_LIGNES * NB_COLONNES)]
+
+    while courant is not None:
+        # Simulation du coup sur une copie locale
+        f_copie_plateau(plateau, copie)
+        f_bouge_piece(copie, courant.coup.l1, courant.coup.c1, courant.coup.l2, courant.coup.c2, joueur_max)
+
+        # Appel recursif vers MIN pour le contre de l'adversaire
+        v = f_min(copie, profondeur - 1, -joueur_max, joueur_ia)
+        if v > valeur_max:
+            valeur_max = v
+
+        courant = courant.suivant
+
+    liberer_coups(coups)
+    return valeur_max
+
 # Test
 if __name__ == "__main__":
     plateauDeJeu = f_init_plateau()
@@ -388,3 +455,8 @@ if __name__ == "__main__":
     print(f"- Pions joueur 1 (x) : {f_nbPions(plateauDeJeu, 1)} (force totale : {f_valeur(plateauDeJeu, 1)})")
     print(f"- Pions joueur -1 (o) : {f_nbPions(plateauDeJeu, -1)} (force totale : {f_valeur(plateauDeJeu, -1)})")
     print(f"- Evaluation initiale pour joueur 1 (prof 3) : {f_eval(plateauDeJeu, 1, 3)}")
+    nb_noeuds_visites = 0
+    # Test d'une exploration Minimax a profondeur 1 pour verifier la recursion
+    score_test = f_max(plateauDeJeu, 1, 1, 1)
+    print(f"- Exploration Minimax (prof 1) score : {score_test}")
+    print(f"- Noeuds visites : {nb_noeuds_visites}")
